@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, ChevronsRight } from 'lucide-react';
 import { MyCoursesPanel } from '@/components/MyCoursesPanel';
 import { useCart } from '@/lib/hooks/useCart';
 import { harvestRegisteredCourses, isHarvestablePage } from '@/lib/polyu/harvest';
@@ -57,20 +57,50 @@ export function App() {
         )}
       </button>
 
+      {/* Dims the page while the panel is open; clicking it closes the panel. */}
+      <div
+        aria-hidden="true"
+        onClick={() => setOpen(false)}
+        className={cn(
+          'fixed inset-0 z-[2147482999] bg-foreground/25 transition-opacity duration-300',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+      />
+
       <div
         className={cn(
-          'fixed top-0 right-0 z-[2147483000] h-screen border-l border-border shadow-2xl transition-transform duration-300 ease-in-out',
+          'fixed top-0 right-0 z-[2147483000] flex h-screen border-l border-border shadow-2xl transition-transform duration-300 ease-in-out',
           // Roughly 3/5 of the page, clamped so it neither collapses on a
           // narrow window nor sprawls on an ultrawide one.
           'w-[clamp(560px,60vw,1040px)] max-w-full',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
-        <MyCoursesPanel
-          onClose={() => setOpen(false)}
-          onImport={harvestable ? runImport : undefined}
-          importState={importState}
-        />
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Collapse My Courses"
+          className={cn(
+            'flex h-full w-7 shrink-0 flex-col items-center justify-center gap-3 border-r border-border',
+            'bg-muted/50 transition-colors hover:bg-muted',
+          )}
+        >
+          <ChevronsRight className="size-4 text-muted-foreground" />
+          <span
+            className="text-[11px] font-medium text-muted-foreground"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+          >
+            My Courses{cart.length > 0 && ` (${cart.length})`}
+          </span>
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <MyCoursesPanel
+            onClose={() => setOpen(false)}
+            onImport={harvestable ? runImport : undefined}
+            importState={importState}
+          />
+        </div>
       </div>
     </>
   );
