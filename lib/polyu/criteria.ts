@@ -45,7 +45,13 @@ function parseOptions(select: HTMLSelectElement): CriteriaOption[] {
  */
 export async function loadSearchCriteria(force = false): Promise<SearchCriteria> {
   const cached = await criteriaCacheItem.getValue();
-  if (!force && cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+  // A cache written by an older version may lack fields added since (the
+  // programme hosting department, the server's semester) — treat it as stale.
+  const cacheComplete =
+    !!cached &&
+    cached.serverYearsem !== undefined &&
+    STATIC_FIELD_IDS.every((id) => (cached.fields[id]?.length ?? 0) > 0);
+  if (!force && cached && cacheComplete && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return { fields: cached.fields, serverYearsem: cached.serverYearsem };
   }
 

@@ -133,112 +133,136 @@ export function SearchDefaultsSection() {
         </Button>
       </div>
 
-      <Field label="Default search mode">
-        <SearchableSelect
-          options={SEARCH_MODES}
-          value={defaults.mode}
-          placeholder="Page default (By Subject)"
-          onChange={(mode) =>
-            void save({ ...defaults, mode: mode as SearchDefaults['mode'] })
-          }
-        />
-      </Field>
-
-      {COMMON_SEARCH_FIELDS.map(({ id, label }) => (
-        <Field key={id} label={label}>
+      <div className="grid grid-cols-2 items-center gap-x-10 gap-y-4">
+        <Field label="Default search mode">
           <SearchableSelect
-            options={fieldOptions(id)}
-            value={defaults.common[id] ?? ''}
-            placeholder={loading ? 'Loading options…' : '-- No default --'}
-            disabled={loading}
-            onChange={(value) => setField('common', id, value)}
+            options={SEARCH_MODES}
+            value={defaults.mode}
+            placeholder="Page default (By Subject)"
+            onChange={(mode) =>
+              void save({ ...defaults, mode: mode as SearchDefaults['mode'] })
+            }
           />
         </Field>
-      ))}
 
-      <GroupHeading>By Subject criteria</GroupHeading>
-      {BY_SUBJECT_FIELDS.map(({ id, label }) => (
-        <Field key={id} label={label}>
-          <SearchableSelect
-            options={fieldOptions(id)}
-            value={defaults.bySubject[id] ?? ''}
-            placeholder={loading ? 'Loading options…' : '-- No default --'}
-            disabled={loading}
-            onChange={(value) => setField('bySubject', id, value)}
-          />
-        </Field>
-      ))}
-
-      <GroupHeading>By Programme criteria</GroupHeading>
-      {BY_PROGRAMME_FIELDS.map(({ id, label }) =>
-        id === PROG_ID_FIELD ? (
-          <Field key={id} label={label}>
-            {progStatus === 'error' ? (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <TriangleAlert className="size-4 shrink-0" />
-                Could not load the programme list.
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    loadProgrammeOptions(yearsem, progDept, true).then(
-                      (options) => {
-                        setProgOptions(options);
-                        setProgStatus('ready');
-                      },
-                      () => setProgStatus('error'),
-                    )
-                  }
-                >
-                  <RefreshCw className="size-3.5" /> Retry
-                </Button>
-              </div>
-            ) : (
-              <SearchableSelect
-                options={progOptions}
-                value={defaults.byProgramme[id] ?? ''}
-                placeholder={
-                  !progDept
-                    ? 'Pick a hosting department first'
-                    : progStatus === 'loading'
-                      ? 'Loading programmes…'
-                      : '-- No default --'
-                }
-                disabled={!progDept || progStatus === 'loading'}
-                onChange={(value) => setField('byProgramme', id, value)}
-              />
-            )}
-          </Field>
-        ) : (
+        {COMMON_SEARCH_FIELDS.map(({ id, label }) => (
           <Field key={id} label={label}>
             <SearchableSelect
               options={fieldOptions(id)}
-              value={defaults.byProgramme[id] ?? ''}
+              value={defaults.common[id] ?? ''}
               placeholder={loading ? 'Loading options…' : '-- No default --'}
               disabled={loading}
-              onChange={(value) => setField('byProgramme', id, value)}
+              onChange={(value) => setField('common', id, value)}
             />
           </Field>
-        ),
-      )}
+        ))}
+      </div>
+
+      {/* One mode per half: By Subject on the left, By Programme on the right. */}
+      <div className="grid grid-cols-2 items-start gap-x-10">
+        <div className="space-y-4">
+          <GroupHeading hint="At least one criterion must be selected">
+            By Subject
+          </GroupHeading>
+          {BY_SUBJECT_FIELDS.map(({ id, label }) => (
+            <Field key={id} label={label}>
+              <SearchableSelect
+                options={fieldOptions(id)}
+                value={defaults.bySubject[id] ?? ''}
+                placeholder={loading ? 'Loading options…' : '-- No default --'}
+                disabled={loading}
+                onChange={(value) => setField('bySubject', id, value)}
+              />
+            </Field>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          <GroupHeading hint="All criteria must be selected">
+            By Programme
+          </GroupHeading>
+          {BY_PROGRAMME_FIELDS.map(({ id, label }) =>
+            id === PROG_ID_FIELD ? (
+              <Field key={id} label={label}>
+                {progStatus === 'error' ? (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <TriangleAlert className="size-4 shrink-0" />
+                    Could not load the programme list.
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        loadProgrammeOptions(yearsem, progDept, true).then(
+                          (options) => {
+                            setProgOptions(options);
+                            setProgStatus('ready');
+                          },
+                          () => setProgStatus('error'),
+                        )
+                      }
+                    >
+                      <RefreshCw className="size-3.5" /> Retry
+                    </Button>
+                  </div>
+                ) : (
+                  <SearchableSelect
+                    options={progOptions}
+                    value={defaults.byProgramme[id] ?? ''}
+                    placeholder={
+                      !progDept
+                        ? 'Pick a hosting department first'
+                        : progStatus === 'loading'
+                          ? 'Loading programmes…'
+                          : '-- No default --'
+                    }
+                    disabled={!progDept || progStatus === 'loading'}
+                    onChange={(value) => setField('byProgramme', id, value)}
+                  />
+                )}
+              </Field>
+            ) : (
+              <Field key={id} label={label}>
+                <SearchableSelect
+                  options={fieldOptions(id)}
+                  value={defaults.byProgramme[id] ?? ''}
+                  placeholder={loading ? 'Loading options…' : '-- No default --'}
+                  disabled={loading}
+                  onChange={(value) => setField('byProgramme', id, value)}
+                />
+              </Field>
+            ),
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[220px_minmax(0,1fr)] items-center gap-x-4">
+    <div className="grid grid-cols-[190px_minmax(0,1fr)] items-center gap-x-4">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
     </div>
   );
 }
 
-function GroupHeading({ children }: { children: React.ReactNode }) {
+function GroupHeading({
+  children,
+  hint,
+}: {
+  children: React.ReactNode;
+  hint?: string;
+}) {
   return (
     <div className="pt-1">
-      <div className="mb-1 text-xs font-semibold tracking-wide text-foreground/70 uppercase">
-        {children}
+      <div className="mb-1 flex items-baseline gap-2">
+        <span className="text-xs font-semibold tracking-wide text-foreground/70 uppercase">
+          {children}
+        </span>
+        {hint && (
+          <span className="text-[11px] text-muted-foreground">({hint})</span>
+        )}
       </div>
       <Separator />
     </div>

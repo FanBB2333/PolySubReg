@@ -9,7 +9,7 @@ const SUBJECT_SEARCH_URL =
 
 export function App() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-6 py-10">
+    <div className="w-full space-y-6 px-8 py-8">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
@@ -38,19 +38,21 @@ export function App() {
         <SearchDefaultsSection />
       </Section>
 
-      <Section
-        title="Features"
-        description="Turn individual parts of the extension on or off"
-      >
-        <FeatureToggles />
-      </Section>
+      <div className="grid grid-cols-2 items-start gap-6">
+        <Section
+          title="Features"
+          description="Turn individual parts of the extension on or off"
+        >
+          <FeatureToggles />
+        </Section>
 
-      <Section
-        title="eStudent credentials"
-        description="Used by auto login on the PolyU ADFS sign-in page"
-      >
-        <CredentialsSection />
-      </Section>
+        <Section
+          title="eStudent credentials"
+          description="Used by auto login on the PolyU ADFS sign-in page"
+        >
+          <CredentialsSection />
+        </Section>
+      </div>
     </div>
   );
 }
