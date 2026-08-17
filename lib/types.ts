@@ -88,3 +88,19 @@ export function adfsUsername(credentials: Credentials): string {
 export function courseId(subjectCode: string, groupCode: string): string {
   return `${subjectCode}::${groupCode}`;
 }
+
+/**
+ * The subject search criteria that can carry a user-configured default value,
+ * applied when the search page opens. Ids are the JSF element ids, identical on
+ * ePublic and eStudent.
+ */
+export const SEARCH_DEFAULT_FIELDS = [
+  { id: 'mainForm:yearsem', label: 'Academic Year / Semester' },
+  { id: 'mainForm:offerOrgUnitId', label: 'Offering Department' },
+  { id: 'mainForm:subjCategory', label: 'Category' },
+  { id: 'mainForm:additionalRequirement', label: 'Additional Requirements in CAR' },
+  { id: 'mainForm:subjLevel', label: 'Subject Level' },
+] as const;
+
+/** Field id → default option value. Fields without a default are absent. */
+export type SearchDefaults = Record<string, string>;

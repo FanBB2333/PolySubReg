@@ -3,6 +3,7 @@ import {
   DEFAULT_CREDENTIALS,
   DEFAULT_SETTINGS,
   type Credentials,
+  type SearchDefaults,
   type SelectedCourse,
   type Settings,
 } from '@/lib/types';
@@ -23,6 +24,18 @@ export const settingsItem = storage.defineItem<Settings>('local:settings', {
 export const cartItem = storage.defineItem<SelectedCourse[]>('local:cart', {
   fallback: [],
 });
+
+/** User-configured default values for the subject search criteria. */
+export const searchDefaultsItem = storage.defineItem<SearchDefaults>(
+  'local:searchDefaults',
+  { fallback: {} },
+);
+
+/** Cached option lists scraped off the ePublic search form for the options UI. */
+export const criteriaCacheItem = storage.defineItem<{
+  fetchedAt: number;
+  fields: Record<string, { value: string; label: string }[]>;
+} | null>('local:searchCriteria', { fallback: null });
 
 export async function getSettings(): Promise<Settings> {
   // Merge over the defaults so a settings object written by an older version

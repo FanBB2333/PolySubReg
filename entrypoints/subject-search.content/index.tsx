@@ -1,6 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { getSettings } from '@/lib/storage';
+import { applySearchDefaults } from './defaults';
 import { enhanceResults } from './results';
 import { enhanceSelects } from './selects';
 import { injectPageCss } from './page.css';
@@ -15,6 +16,11 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   async main(ctx) {
+    // Defaults are their own feature: they apply even with the visual
+    // enhancement toggled off. May trigger the page's own auto-submit reload
+    // (Academic Year/Semester); everything below simply runs again after it.
+    await applySearchDefaults();
+
     const settings = await getSettings();
     if (!settings.enhanceSearch) return;
 
