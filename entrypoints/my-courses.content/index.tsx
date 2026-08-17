@@ -6,12 +6,17 @@ import { App } from './App';
 import '@/assets/tailwind.css';
 
 /**
- * Adds the floating "My Courses" launcher to every eStudent page. The panel is
- * mounted in a shadow root so PolyU's global stylesheet — which styles bare
- * `table`, `div` and `button` elements aggressively — cannot reach it.
+ * Adds the floating "My Courses" launcher to every eStudent page, plus the
+ * anonymous ePublic subject search — anywhere a course can be added, the panel
+ * should be reachable. It is mounted in a shadow root so PolyU's global
+ * stylesheet — which styles bare `table`, `div` and `button` elements
+ * aggressively — cannot reach it.
  */
 export default defineContentScript({
-  matches: ['https://www38.polyu.edu.hk/eStudent/*'],
+  matches: [
+    'https://www38.polyu.edu.hk/eStudent/*',
+    'https://www38.polyu.edu.hk/ePublic/subject-search.jsf*',
+  ],
   cssInjectionMode: 'ui',
   runAt: 'document_idle',
 

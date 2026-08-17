@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WeeklyGrid } from '@/components/WeeklyGrid';
 import { useCart } from '@/lib/hooks/useCart';
 import { findConflicts, formatSession, totalCredits } from '@/lib/polyu/timetable';
@@ -31,10 +30,32 @@ export function MyCoursesPanel({
 
   return (
     <div className="flex h-full w-full flex-col bg-card">
-      <div className="border-b border-border p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">My Courses</h2>
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-5">
+            <h2 className="text-lg font-semibold">My Courses</h2>
+            <div className="flex gap-4 text-sm">
+              <Stat label="Courses" value={cart.length} />
+              <Stat label="Credits" value={credits} />
+              <Stat label="Sessions" value={sessionCount} />
+            </div>
+          </div>
           <div className="flex items-center gap-1">
+            {onImport && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={importState === 'importing'}
+                onClick={onImport}
+              >
+                <DownloadCloud className="size-3.5" />
+                {importState === 'importing'
+                  ? 'Importing…'
+                  : importState === 'empty'
+                    ? 'Nothing found on this page'
+                    : 'Import from this page'}
+              </Button>
+            )}
             {cart.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => clear()}>
                 Clear All
@@ -52,82 +73,55 @@ export function MyCoursesPanel({
           </div>
         </div>
 
-        <div className="flex gap-4 text-sm">
-          <Stat label="Courses" value={cart.length} />
-          <Stat label="Credits" value={credits} />
-          <Stat label="Sessions" value={sessionCount} />
-        </div>
-
         {conflicts.size > 0 && (
           <div className="mt-2 flex items-center gap-1.5 rounded bg-destructive/10 p-2 text-sm text-destructive">
             <TriangleAlert className="size-4 shrink-0" />
             {conflicts.size} course(s) have timetable clashes
           </div>
         )}
-
-        {onImport && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3 w-full"
-            disabled={importState === 'importing'}
-            onClick={onImport}
-          >
-            <DownloadCloud className="size-3.5" />
-            {importState === 'importing'
-              ? 'Importing…'
-              : importState === 'empty'
-                ? 'Nothing found on this page'
-                : 'Import from this page'}
-          </Button>
-        )}
       </div>
 
-      <Tabs defaultValue="schedule" className="flex min-h-0 flex-1 flex-col">
-        <div className="px-4 pt-3">
-          <TabsList className="w-full">
-            <TabsTrigger value="schedule" className="flex-1">
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger value="list" className="flex-1">
-              List
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <SectionLabel>Weekly timetable</SectionLabel>
+        <WeeklyGrid courses={cart} conflicts={conflicts} />
 
-        <TabsContent value="schedule" className="min-h-0 flex-1">
-          <ScrollArea className="h-full">
-            <WeeklyGrid courses={cart} conflicts={conflicts} />
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="list" className="min-h-0 flex-1">
-          <ScrollArea className="h-full">
-            <div className="space-y-3 p-4">
-              {cart.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  <p className="text-sm">No courses selected</p>
-                  <p className="mt-1 text-xs">
-                    Expand a subject in the search results and add a group
-                  </p>
-                </div>
-              ) : (
-                cart.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    conflictsWith={[...(conflicts.get(course.id) ?? [])]
-                      .map((id) => cart.find((c) => c.id === id)?.subjectCode)
-                      .filter(Boolean)
-                      .join(', ')}
-                    onRemove={() => remove(course.id)}
-                  />
-                ))
-              )}
+        <SectionLabel>Course list</SectionLabel>
+        <div className="p-4 pt-2">
+          {cart.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground">
+              <p className="text-sm">No courses selected</p>
+              <p className="mt-1 text-xs">
+                Expand a subject in the search results and add a group
+              </p>
             </div>
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {cart.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  conflictsWith={[...(conflicts.get(course.id) ?? [])]
+                    .map((id) => cart.find((c) => c.id === id))
+                    .filter((c) => c !== undefined)
+                    // Two groups of the same subject can clash; the group code
+                    // is what tells them apart.
+                    .map((c) => `${c.subjectCode} (${c.groupCode})`)
+                    .join(', ')}
+                  onRemove={() => remove(course.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-5 pt-4 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      {children}
     </div>
   );
 }

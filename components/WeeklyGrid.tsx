@@ -21,9 +21,118 @@ function colorAt(index: number): string {
 
 const DAY_COUNT = 6; // Mon–Sat; PolyU does not timetable Sundays.
 const SLOT_MINUTES = 30;
-const GRID_START = 8 * 60; // 08:00
-const GRID_END = 22 * 60; // 22:00
-const ROW_HEIGHT = 22;
+// The full teaching day is always shown, morning to evening, so the shape of
+// the week stays stable as courses come and go. PolyU classes run 08:30–21:20.
+const DAY_START = 8 * 60; // 08:00
+const DAY_END = 22 * 60; // 22:00
+const ROW_HEIGHT = 26;
+const HEADER_HEIGHT = 26;
+
+/** One rendered block: possibly several parallel sessions merged. */
+interface DisplayEntry {
+  course: SelectedCourse;
+  day: number;
+  startMin: number;
+  endMin: number;
+  /** `LEC001`, or `LAB ×4` when parallel sessions were merged. */
+  component: string;
+  time: string;
+  venue: string;
+  staff: string;
+  tooltip: string;
+}
+
+interface PositionedEntry extends DisplayEntry {
+  /** Column within an overlap cluster, so clashing blocks sit side by side. */
+  col: number;
+  cols: number;
+}
+
+/**
+ * PolyU lists a group's parallel lab/tutorial streams as separate rows —
+ * LAB001…LAB004, same time, different rooms. Drawn naively they stack into an
+ * unreadable pile, so sessions of the same course sharing a time slot collapse
+ * into one block that names the component family and counts the rooms.
+ */
+function mergeParallel(entries: GridEntry[]): DisplayEntry[] {
+  const merged = new Map<string, { base: GridEntry; venues: string[]; components: string[] }>();
+  for (const e of entries) {
+    const family = e.session.componentCode.replace(/\d+$/, '');
+    const key = [e.course.id, e.day, e.startMin, e.endMin, family].join('|');
+    const bucket = merged.get(key);
+    if (bucket) {
+      if (e.session.venue) bucket.venues.push(e.session.venue);
+      bucket.components.push(e.session.componentCode);
+    } else {
+      merged.set(key, {
+        base: e,
+        venues: e.session.venue ? [e.session.venue] : [],
+        components: [e.session.componentCode],
+      });
+    }
+  }
+
+  return [...merged.values()].map(({ base, venues, components }) => {
+    const many = components.length > 1;
+    const family = base.session.componentCode.replace(/\d+$/, '');
+    return {
+      course: base.course,
+      day: base.day,
+      startMin: base.startMin,
+      endMin: base.endMin,
+      component: many ? `${family} ×${components.length}` : base.session.componentCode,
+      time: `${base.session.startTime}–${base.session.endTime}`,
+      venue: many ? `${venues[0] ?? ''} +${venues.length - 1}` : (venues[0] ?? ''),
+      staff: base.session.teachingStaff,
+      tooltip: [
+        `${base.course.subjectCode} ${base.course.subjectTitle}`,
+        `Group ${base.course.groupCode} · ${components.join(', ')}`,
+        `${base.session.dayOfWeek} ${base.session.startTime}-${base.session.endTime}`,
+        venues.length > 0 && `Venue: ${venues.join(', ')}`,
+        base.session.teachingStaff && `Staff: ${base.session.teachingStaff}`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    };
+  });
+}
+
+/**
+ * Classic calendar column assignment: blocks that overlap in time share the
+ * cell width side by side instead of painting over each other.
+ */
+function layoutDay(dayEntries: DisplayEntry[]): PositionedEntry[] {
+  const sorted = [...dayEntries].sort(
+    (a, b) => a.startMin - b.startMin || b.endMin - a.endMin,
+  );
+  const out: PositionedEntry[] = [];
+  let cluster: { entry: DisplayEntry; col: number }[] = [];
+  let colEnds: number[] = [];
+  let clusterEnd = -1;
+
+  const flush = () => {
+    for (const { entry, col } of cluster) {
+      out.push({ ...entry, col, cols: colEnds.length });
+    }
+    cluster = [];
+    colEnds = [];
+    clusterEnd = -1;
+  };
+
+  for (const entry of sorted) {
+    if (cluster.length > 0 && entry.startMin >= clusterEnd) flush();
+    let col = colEnds.findIndex((end) => end <= entry.startMin);
+    if (col === -1) {
+      col = colEnds.length;
+      colEnds.push(0);
+    }
+    colEnds[col] = entry.endMin;
+    cluster.push({ entry, col });
+    clusterEnd = Math.max(clusterEnd, entry.endMin);
+  }
+  flush();
+  return out;
+}
 
 interface WeeklyGridProps {
   courses: SelectedCourse[];
@@ -31,7 +140,12 @@ interface WeeklyGridProps {
 }
 
 export function WeeklyGrid({ courses, conflicts }: WeeklyGridProps) {
-  const entries = useMemo(() => buildGrid(courses), [courses]);
+  const positioned = useMemo(() => {
+    const display = mergeParallel(buildGrid(courses));
+    return Array.from({ length: DAY_COUNT }, (_, day) =>
+      layoutDay(display.filter((e) => e.day === day)),
+    ).flat();
+  }, [courses]);
 
   const colorOf = useMemo(() => {
     const map = new Map<string, string>();
@@ -45,44 +159,33 @@ export function WeeklyGrid({ courses, conflicts }: WeeklyGridProps) {
     return map;
   }, [courses]);
 
+  // Widen beyond the standard day only if a session actually falls outside it.
   const { start, end } = useMemo(() => {
-    if (entries.length === 0) return { start: 8 * 60, end: 19 * 60 };
-    // Crop the grid to the hours actually in use, padded by half an hour.
-    const min = Math.min(...entries.map((e) => e.startMin)) - SLOT_MINUTES;
-    const max = Math.max(...entries.map((e) => e.endMin)) + SLOT_MINUTES;
-    return {
-      start: Math.max(GRID_START, Math.floor(min / 60) * 60),
-      end: Math.min(GRID_END, Math.ceil(max / 60) * 60),
-    };
-  }, [entries]);
+    let start = DAY_START;
+    let end = DAY_END;
+    for (const e of positioned) {
+      start = Math.min(start, Math.floor(e.startMin / 60) * 60);
+      end = Math.max(end, Math.ceil(e.endMin / 60) * 60);
+    }
+    return { start, end };
+  }, [positioned]);
 
-  const slots = Math.max(1, (end - start) / SLOT_MINUTES);
-
-  if (entries.length === 0) {
-    return (
-      <div className="py-8 text-center text-muted-foreground">
-        <p className="text-sm">Nothing to show on the timetable</p>
-        <p className="mt-1 text-xs">
-          Add a subject group with published class times
-        </p>
-      </div>
-    );
-  }
+  const slots = (end - start) / SLOT_MINUTES;
 
   return (
-    <div className="p-3">
+    <div className="p-4 pt-2">
       <div
         className="grid gap-px overflow-hidden rounded-lg border border-border bg-border"
         style={{
-          gridTemplateColumns: `42px repeat(${DAY_COUNT}, minmax(0, 1fr))`,
-          gridTemplateRows: `20px repeat(${slots}, ${ROW_HEIGHT}px)`,
+          gridTemplateColumns: `52px repeat(${DAY_COUNT}, minmax(0, 1fr))`,
+          gridTemplateRows: `${HEADER_HEIGHT}px repeat(${slots}, ${ROW_HEIGHT}px)`,
         }}
       >
         <div className="bg-muted/50" />
         {DAYS.slice(0, DAY_COUNT).map((day) => (
           <div
             key={day}
-            className="flex items-center justify-center bg-muted/50 text-[10px] font-medium text-muted-foreground"
+            className="flex items-center justify-center bg-muted/50 text-xs font-medium text-muted-foreground"
           >
             {day}
           </div>
@@ -95,7 +198,7 @@ export function WeeklyGrid({ courses, conflicts }: WeeklyGridProps) {
             <div
               key={`gutter-${minute}`}
               className={cn(
-                'flex items-start justify-end bg-muted/30 pr-1 text-[9px] text-muted-foreground',
+                'flex items-start justify-end bg-muted/30 pr-1.5 pt-0.5 text-[10px] text-muted-foreground',
                 !onTheHour && 'text-transparent',
               )}
               style={{ gridColumn: 1, gridRow: i + 2 }}
@@ -116,24 +219,22 @@ export function WeeklyGrid({ courses, conflicts }: WeeklyGridProps) {
           )),
         )}
 
-        {entries
-          .filter((e) => e.day < DAY_COUNT)
-          .map((entry, i) => (
-            <Block
-              key={`${entry.course.id}-${entry.session.componentCode}-${entry.day}-${entry.startMin}-${i}`}
-              entry={entry}
-              gridStart={start}
-              conflicted={(conflicts.get(entry.course.id)?.size ?? 0) > 0}
-              colorClass={colorOf.get(entry.course.subjectCode) ?? colorAt(0)}
-            />
-          ))}
+        {positioned.map((entry, i) => (
+          <Block
+            key={`${entry.course.id}-${entry.component}-${entry.day}-${entry.startMin}-${i}`}
+            entry={entry}
+            gridStart={start}
+            conflicted={(conflicts.get(entry.course.id)?.size ?? 0) > 0}
+            colorClass={colorOf.get(entry.course.subjectCode) ?? colorAt(0)}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 interface BlockProps {
-  entry: GridEntry;
+  entry: PositionedEntry;
   gridStart: number;
   conflicted: boolean;
   colorClass: string;
@@ -149,7 +250,7 @@ function Block({ entry, gridStart, conflicted, colorClass }: BlockProps) {
   return (
     <div
       className={cn(
-        'm-px overflow-hidden rounded border px-1 py-px text-[9px] leading-tight',
+        'overflow-hidden rounded border px-1.5 py-0.5 leading-tight',
         conflicted
           ? 'border-destructive/40 bg-destructive/20 text-destructive'
           : colorClass,
@@ -157,20 +258,27 @@ function Block({ entry, gridStart, conflicted, colorClass }: BlockProps) {
       style={{
         gridColumn: entry.day + 2,
         gridRow: `${rowStart} / span ${span}`,
+        // Percentages resolve against the grid cell, so an overlap cluster of
+        // n blocks splits the cell into n side-by-side columns.
+        width: `calc(${100 / entry.cols}% - 2px)`,
+        marginLeft: `calc(${(100 * entry.col) / entry.cols}% + 1px)`,
+        marginTop: '1px',
+        marginBottom: '1px',
       }}
-      title={[
-        `${entry.course.subjectCode} ${entry.course.subjectTitle}`,
-        `Group ${entry.course.groupCode} · ${entry.session.componentCode}`,
-        `${entry.session.dayOfWeek} ${entry.session.startTime}-${entry.session.endTime}`,
-        entry.session.venue && `Venue: ${entry.session.venue}`,
-        entry.session.teachingStaff && `Staff: ${entry.session.teachingStaff}`,
-      ]
-        .filter(Boolean)
-        .join('\n')}
+      title={entry.tooltip}
     >
-      <div className="truncate font-medium">{entry.course.subjectCode}</div>
+      <div className="truncate text-[11px] font-medium">
+        {entry.course.subjectCode}
+        <span className="ml-1 font-normal opacity-70">{entry.component}</span>
+      </div>
       {span > 1 && (
-        <div className="truncate opacity-80">{entry.session.venue}</div>
+        <div className="truncate text-[10px] opacity-80">
+          {entry.time}
+          {entry.venue && ` · ${entry.venue}`}
+        </div>
+      )}
+      {span > 2 && entry.staff && (
+        <div className="truncate text-[10px] opacity-70">{entry.staff}</div>
       )}
     </div>
   );

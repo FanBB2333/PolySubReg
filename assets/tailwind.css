@@ -95,14 +95,19 @@
 }
 
 /*
- * `:host` covers the shadow roots the content scripts mount into, `body` the
- * popup document. Content scripts never touch the host page's own styles.
+ * `body` covers the popup document. The content-script UIs are shadow roots
+ * with no body inside, and WXT resets their host with `all: initial
+ * !important` — which also beats any `:host` rule of ours — so for those the
+ * font lands on the mount container (`:host > div`) instead. The stack mirrors
+ * what the PolyU pages themselves use (Inter + Noto Sans TC), so injected UI
+ * reads like part of the page.
  */
-:host,
-body {
-  @apply bg-background text-foreground;
+body,
+:host > div {
+  @apply text-foreground;
   font-family:
     'Inter',
+    'Noto Sans TC',
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -111,10 +116,12 @@ body {
   line-height: 1.5;
 }
 
-/* The host page's stylesheet does not reach into the shadow root, but the
- * shadow root inherits a handful of properties from the host element. Pin the
- * ones the PolyU pages set aggressively. */
-:host {
+body {
+  @apply bg-background;
+}
+
+/* Properties the shadow root would otherwise inherit from the reset host. */
+:host > div {
   color-scheme: light;
   text-align: left;
   letter-spacing: normal;

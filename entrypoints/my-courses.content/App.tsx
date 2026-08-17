@@ -44,7 +44,8 @@ export function App() {
           'fixed top-24 right-0 z-[2147483000] flex items-center gap-2 rounded-l-lg border border-r-0 border-border',
           'bg-card py-2.5 pr-3 pl-3 text-sm font-medium shadow-lg transition-all',
           'hover:bg-muted',
-          open && 'right-96',
+          // The open panel slides over the launcher; fade it out underneath.
+          open && 'pointer-events-none opacity-0',
         )}
       >
         <CalendarDays className="size-4 text-primary" />
@@ -59,7 +60,9 @@ export function App() {
       <div
         className={cn(
           'fixed top-0 right-0 z-[2147483000] h-screen border-l border-border shadow-2xl transition-transform duration-300 ease-in-out',
-          'w-96',
+          // Roughly 3/5 of the page, clamped so it neither collapses on a
+          // narrow window nor sprawls on an ultrawide one.
+          'w-[clamp(560px,60vw,1040px)] max-w-full',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
