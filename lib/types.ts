@@ -92,15 +92,54 @@ export function courseId(subjectCode: string, groupCode: string): string {
 /**
  * The subject search criteria that can carry a user-configured default value,
  * applied when the search page opens. Ids are the JSF element ids, identical on
- * ePublic and eStudent.
+ * ePublic and eStudent. The form has two modes with disjoint criteria, plus the
+ * Academic Year/Semester shared by both.
  */
-export const SEARCH_DEFAULT_FIELDS = [
+export type SearchMode = 'bySubject' | 'byProgramme';
+
+export const SEARCH_MODES: { value: SearchMode; label: string }[] = [
+  { value: 'bySubject', label: 'By Subject' },
+  { value: 'byProgramme', label: 'By Programme' },
+];
+
+export const COMMON_SEARCH_FIELDS = [
   { id: 'mainForm:yearsem', label: 'Academic Year / Semester' },
+] as const;
+
+export const BY_SUBJECT_FIELDS = [
   { id: 'mainForm:offerOrgUnitId', label: 'Offering Department' },
   { id: 'mainForm:subjCategory', label: 'Category' },
   { id: 'mainForm:additionalRequirement', label: 'Additional Requirements in CAR' },
   { id: 'mainForm:subjLevel', label: 'Subject Level' },
 ] as const;
 
-/** Field id → default option value. Fields without a default are absent. */
-export type SearchDefaults = Record<string, string>;
+export const BY_PROGRAMME_FIELDS = [
+  { id: 'mainForm:progOrgUnitId', label: 'Programme Hosting Department' },
+  { id: 'mainForm:progId', label: 'Programme' },
+] as const;
+
+export const YEARSEM_FIELD = 'mainForm:yearsem';
+export const PROG_DEPT_FIELD = 'mainForm:progOrgUnitId';
+export const PROG_ID_FIELD = 'mainForm:progId';
+
+/** Selects whose change JSF answers with a full form submit and re-render. */
+export const AUTO_SUBMIT_FIELD_IDS: ReadonlySet<string> = new Set([
+  YEARSEM_FIELD,
+  PROG_DEPT_FIELD,
+]);
+
+export interface SearchDefaults {
+  /** Default search mode; `''` keeps the page's own default (By Subject). */
+  mode: '' | SearchMode;
+  /** Criteria shared by both modes (Academic Year/Semester). */
+  common: Record<string, string>;
+  bySubject: Record<string, string>;
+  byProgramme: Record<string, string>;
+}
+
+export const EMPTY_SEARCH_DEFAULTS: SearchDefaults = {
+  mode: '',
+  common: {},
+  bySubject: {},
+  byProgramme: {},
+};
