@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Debug browser state: live session cookies + Chrome profile
+.debug/
+
 # Logs
 logs
 *.log
