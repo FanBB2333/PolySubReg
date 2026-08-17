@@ -51,7 +51,12 @@ export interface SelectedCourse {
 export interface Credentials {
   netId: string;
   password: string;
-  /** Appended to the NetID to form the ADFS username. */
+  /**
+   * Appended to the NetID to form the ADFS username. Leave empty for the
+   * default `hh\<NetID>` AD format — PolyU's own ADFS page prepends `hh\` to
+   * any username that carries neither `@` nor `\` (see its onload.js), and the
+   * AD rejects the e-mail style `<NetID>@connect.polyu.edu.hk`.
+   */
   domain: string;
 }
 
@@ -70,8 +75,15 @@ export const DEFAULT_SETTINGS: Settings = {
 export const DEFAULT_CREDENTIALS: Credentials = {
   netId: '',
   password: '',
-  domain: '@connect.polyu.edu.hk',
+  domain: '',
 };
+
+/** The ADFS username the extension will submit for a given credential set. */
+export function adfsUsername(credentials: Credentials): string {
+  const { netId, domain } = credentials;
+  if (netId.includes('@') || netId.includes('\\')) return netId;
+  return domain ? `${netId}${domain}` : `hh\\${netId}`;
+}
 
 export function courseId(subjectCode: string, groupCode: string): string {
   return `${subjectCode}::${groupCode}`;

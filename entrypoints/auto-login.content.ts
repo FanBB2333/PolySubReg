@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { credentialsItem, getSettings } from '@/lib/storage';
+import { adfsUsername } from '@/lib/types';
 
 /**
  * eStudent sits behind PolyU's ADFS SSO. Rather than replaying the SAML flow
@@ -41,9 +42,7 @@ export default defineContentScript({
     if (sessionStorage.getItem(ATTEMPT_KEY)) return;
     sessionStorage.setItem(ATTEMPT_KEY, '1');
 
-    const username = credentials.netId.includes('@')
-      ? credentials.netId
-      : `${credentials.netId}${credentials.domain}`;
+    const username = adfsUsername(credentials);
 
     setNativeValue(userInput, username);
     setNativeValue(passwordInput, credentials.password);

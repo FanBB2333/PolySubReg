@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { credentialsItem, settingsItem } from '@/lib/storage';
 import {
+  adfsUsername,
   DEFAULT_CREDENTIALS,
   DEFAULT_SETTINGS,
   type Credentials,
@@ -86,22 +87,27 @@ export function App() {
 
         <div className="space-y-1.5">
           <Label htmlFor="domain" className="text-xs">
-            Sign-in domain
+            Sign-in domain{' '}
+            <span className="font-normal text-muted-foreground">
+              (leave empty for the default)
+            </span>
           </Label>
           <Input
             id="domain"
             value={credentials.domain}
-            placeholder="@connect.polyu.edu.hk"
+            placeholder={'empty = hh\\NetID'}
             autoComplete="off"
             onChange={(e) =>
               setCredentials({ ...credentials, domain: e.target.value.trim() })
             }
           />
           <p className="text-[11px] text-muted-foreground">
-            Signed in as{' '}
+            Will sign in as{' '}
             <span className="font-mono">
-              {credentials.netId || 'netid'}
-              {credentials.domain}
+              {adfsUsername({
+                ...credentials,
+                netId: credentials.netId || 'netid',
+              })}
             </span>
           </p>
         </div>

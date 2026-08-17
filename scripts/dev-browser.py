@@ -98,25 +98,43 @@ def restore_cookies(context) -> bool:
     return True
 
 
-def cmd_login(domain: str = "@connect.polyu.edu.hk") -> None:
+def cmd_login(domain: str = "") -> None:
+    manual = domain == "manual"
     with sync_playwright() as p:
         proc, browser, ext_id = launch(p)
         context = browser.contexts[0]
-        seed_credentials(context, ext_id, domain)
+        if manual:
+            # Sign-in is done by hand in the window; make sure the extension
+            # does not race it with a stale stored password.
+            page = context.new_page()
+            page.goto(f"chrome-extension://{ext_id}/popup.html")
+            page.evaluate(
+                """() => new Promise((resolve) => chrome.storage.local.set({
+                     settings: { autoLogin: false, enhanceSearch: true, showMyCourses: true },
+                   }, resolve))"""
+            )
+            page.close()
+            print("auto-login disabled for this profile — sign in by hand in the window")
+        else:
+            seed_credentials(context, ext_id, domain)
 
         page = context.pages[0] if context.pages else context.new_page()
         page.goto(ESTUDENT_URL, wait_until="domcontentloaded")
         print("waiting for sign-in (complete MFA in the browser window if prompted)…")
-        for _ in range(90):  # up to 3 minutes
+        last_error = ""
+        for _ in range(150):  # up to 5 minutes
             time.sleep(2)
             if "www38.polyu.edu.hk/eStudent" in page.url:
                 break
-            error = page.evaluate(
-                """() => document.querySelector('#errorText, #error')?.textContent?.trim() || ''"""
-            )
-            if error:
-                print(f"ADFS error: {error}")
-                print("fix the credentials (popup) and sign in manually, still waiting…")
+            try:
+                error = page.evaluate(
+                    """() => document.querySelector('#errorText, #error')?.textContent?.trim() || ''"""
+                )
+            except Exception:
+                continue  # navigation in flight — poll again
+            if error and error != last_error:
+                last_error = error
+                print(f"ADFS error: {error} — still waiting for a manual sign-in…")
         if "www38.polyu.edu.hk/eStudent" in page.url:
             print(f"signed in: {page.url}")
             save_cookies(context)
@@ -149,7 +167,7 @@ def cmd_open(url: str) -> None:
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "open"
     if cmd == "login":
-        cmd_login(sys.argv[2] if len(sys.argv) > 2 else "@connect.polyu.edu.hk")
+        cmd_login(sys.argv[2] if len(sys.argv) > 2 else "")
     elif cmd == "open":
         cmd_open(sys.argv[2] if len(sys.argv) > 2 else ESTUDENT_URL)
     else:
