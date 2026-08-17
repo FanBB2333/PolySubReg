@@ -54,18 +54,28 @@ The visual design follows the [`seper`](../seper) project's Morandi palette.
 
 ```bash
 pnpm install
-pnpm dev        # launches Chrome with the extension loaded
-pnpm build      # -> .output/chrome-mv3
+pnpm dev        # watch + rebuild -> .output/chrome-mv3-dev
+pnpm build      # production build -> .output/chrome-mv3
 pnpm test       # parser + timetable unit tests
 pnpm compile    # typecheck
 ```
 
-Load `.output/chrome-mv3` via `chrome://extensions` → *Load unpacked*, then set
-your NetID and password in the extension popup.
+Then load the build into your own Chrome:
 
-> Chrome 137+ ignores the `--load-extension` command-line switch, so automated
-> runs have to load the build through the CDP `Extensions.loadUnpacked` method
-> with `--enable-unsafe-extension-debugging`.
+1. `chrome://extensions` → enable **Developer mode**
+2. **Load unpacked** → pick `.output/chrome-mv3-dev` (or `.output/chrome-mv3`)
+3. Open the extension popup and save your NetID and password
+
+`wxt dev` deliberately does not spawn its own browser (`webExt.disabled`): the
+one it launches carries automation flags that make Chrome show an "unsupported
+command-line flag" banner, and it starts from an empty profile on every run. Use
+your own Chrome and keep the dev server running — it rebuilds and reloads the
+loaded extension on save.
+
+> Chrome 137+ ignores the `--load-extension` command-line switch. Loading
+> unpacked from the `chrome://extensions` UI is unaffected, but scripted runs
+> have to go through the CDP `Extensions.loadUnpacked` method with
+> `--enable-unsafe-extension-debugging`.
 
 ### Layout
 
