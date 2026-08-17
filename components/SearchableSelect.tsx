@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import {
   Command,
@@ -25,12 +25,18 @@ interface SearchableSelectProps {
   disabled?: boolean;
 }
 
+const LIST_MAX_HEIGHT = 320;
+const MIN_DROPDOWN_WIDTH = 256;
+
 /**
  * Drop-in replacement for the PolyU search form's `<select>` elements.
  *
- * The dropdown is rendered inline rather than through a portal: the whole
- * component lives inside a shadow root, and a portal would escape it and lose
- * every Tailwind style.
+ * The dropdown list is promoted to the browser's top layer with the native
+ * Popover API rather than positioned with z-index: the component sits inside a
+ * table deep in the PolyU page, whose own stacking contexts paint over any
+ * z-index we could pick, and the top layer is above all of them by definition.
+ * The element itself stays inside our shadow root, so Tailwind styles apply and
+ * React portals (which would escape the shadow root) are never needed.
  */
 export function SearchableSelect({
   options,
@@ -41,45 +47,80 @@ export function SearchableSelect({
   disabled,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
-  const [dropUp, setDropUp] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
 
   const selected = useMemo(
     () => options.find((o) => o.value === value),
     [options, value],
   );
 
+  // Show the popover and pin it to the trigger. Runs before paint so the list
+  // never flashes at the wrong position.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const pop = popRef.current;
+    const trigger = rootRef.current;
+    if (!pop || !trigger) return;
+
+    try {
+      pop.showPopover();
+    } catch {
+      // Already showing, or an ancient browser without the Popover API — the
+      // element still renders, just without top-layer promotion.
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    const popWidth = Math.max(rect.width, MIN_DROPDOWN_WIDTH);
+    const left = Math.min(
+      Math.max(4, rect.left),
+      window.innerWidth - popWidth - 4,
+    );
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < LIST_MAX_HEIGHT && rect.top > spaceBelow;
+
+    pop.style.inset = 'auto';
+    pop.style.left = `${left}px`;
+    pop.style.width = `${popWidth}px`;
+    if (openUp) {
+      pop.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+    } else {
+      pop.style.top = `${rect.bottom + 4}px`;
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
       // This component lives in a shadow root, so by the time the event reaches
       // `document` its `target` has been retargeted to the shadow host — which
-      // is never a descendant of `rootRef`. Checking `contains(e.target)` here
-      // would close the dropdown on every click, including clicks on our own
-      // options. The composed path still holds the true originating node.
+      // is never a descendant of `rootRef`. The composed path still holds the
+      // true originating node.
       const root = rootRef.current;
       if (root && !e.composedPath().includes(root)) setOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    // The top-layer popover is pinned to viewport coordinates and would drift
+    // away from its trigger when the page scrolls or resizes — close instead.
+    // Scrolls that start inside the option list itself must not count.
+    const onScroll = (e: Event) => {
+      const root = rootRef.current;
+      if (root && e.target instanceof Node && root.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
     };
   }, [open]);
-
-  const toggle = () => {
-    if (disabled) return;
-    if (!open && rootRef.current) {
-      // Long department lists would otherwise run off the bottom of the page.
-      const rect = rootRef.current.getBoundingClientRect();
-      setDropUp(window.innerHeight - rect.bottom < 320 && rect.top > 320);
-    }
-    setOpen((o) => !o);
-  };
 
   const select = (next: string) => {
     onChange(next);
@@ -95,7 +136,7 @@ export function SearchableSelect({
       <button
         type="button"
         disabled={disabled}
-        onClick={toggle}
+        onClick={() => !disabled && setOpen((o) => !o)}
         aria-expanded={open}
         className={cn(
           'flex h-8 w-full items-center justify-between gap-1 rounded-md border border-input bg-card px-2.5 py-1',
@@ -131,10 +172,9 @@ export function SearchableSelect({
 
       {open && (
         <div
-          className={cn(
-            'absolute z-[2147483000] w-full min-w-64 rounded-md border border-border bg-popover shadow-lg',
-            dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
-          )}
+          ref={popRef}
+          popover="manual"
+          className="fixed m-0 overflow-hidden rounded-md border border-border bg-popover p-0 text-sm text-popover-foreground shadow-lg"
         >
           <Command
             // The options are already a curated list; keep PolyU's own ordering

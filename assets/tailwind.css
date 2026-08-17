@@ -3,12 +3,33 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  /*
+   * Pin the scale in px. Tailwind's defaults are rem-based, and rem resolves
+   * against the *document* root even inside a shadow root — the PolyU pages set
+   * a 13px root font-size, which silently shrank every size to 81%.
+   */
+  --spacing: 4px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+}
+
 /*
  * Morandi palette — muted, warm, low-contrast.
  * Ported from the `seper` project so PSR panels look like part of the same family.
  */
 :root {
-  --radius: 0.625rem;
+  --radius: 10px;
   --background: oklch(0.965 0.005 85);
   --foreground: oklch(0.25 0.02 60);
   --card: oklch(0.995 0 0);
