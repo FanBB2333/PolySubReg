@@ -227,8 +227,8 @@ export function SearchDefaultsSection() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+    <div className="grid grid-cols-[220px_minmax(0,1fr)] items-center gap-x-4">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
     </div>
   );
