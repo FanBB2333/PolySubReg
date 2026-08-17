@@ -50,6 +50,32 @@ groups you have picked, as a weekly grid or a list, with:
 
 The visual design follows the [`seper`](../seper) project's Morandi palette.
 
+## Screenshots
+
+Captured live against `ePublic` with the built extension loaded.
+
+**Searchable dropdowns** — type to filter the 70-entry department list; the
+native `<select>` stays in the form underneath:
+
+![Searchable dropdown](docs/screenshots/searchable-dropdown.png)
+
+**Detail without navigation** — every result row is annotated inline with its
+group count, weekly sessions and lecturers; ▾ expands the full per-group
+timetable with an add-to-My-Courses button:
+
+![Expanded subject groups](docs/screenshots/subject-groups.png)
+
+**My Courses panel** — full-day weekly grid plus a compact course list, with
+timetable clash detection (both picks here collide, hence the red):
+
+![My Courses panel](docs/screenshots/my-courses-panel.png)
+
+**Settings page** — search defaults split by search mode (By Subject left,
+By Programme right, with the live programme list per department), feature
+toggles and credentials:
+
+![Settings page](docs/screenshots/options-page.png)
+
 ## Development
 
 ```bash
