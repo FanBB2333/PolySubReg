@@ -27,6 +27,7 @@ interface SearchableSelectProps {
 
 const LIST_MAX_HEIGHT = 320;
 const MIN_DROPDOWN_WIDTH = 256;
+const MAX_DROPDOWN_WIDTH = 560;
 
 /**
  * Drop-in replacement for the PolyU search form's `<select>` elements.
@@ -71,17 +72,22 @@ export function SearchableSelect({
     }
 
     const rect = trigger.getBoundingClientRect();
-    const popWidth = Math.max(rect.width, MIN_DROPDOWN_WIDTH);
-    const left = Math.min(
-      Math.max(4, rect.left),
-      window.innerWidth - popWidth - 4,
-    );
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < LIST_MAX_HEIGHT && rect.top > spaceBelow;
 
+    // Size to the option labels: never narrower than the trigger, never wider
+    // than the cap or the viewport. The long department names would otherwise
+    // truncate inside a trigger-width list.
     pop.style.inset = 'auto';
+    pop.style.width = 'max-content';
+    pop.style.minWidth = `${Math.max(rect.width, MIN_DROPDOWN_WIDTH)}px`;
+    pop.style.maxWidth = `${Math.min(MAX_DROPDOWN_WIDTH, window.innerWidth - 16)}px`;
+    const popWidth = pop.offsetWidth;
+    const left = Math.min(
+      Math.max(4, rect.left),
+      window.innerWidth - popWidth - 8,
+    );
     pop.style.left = `${left}px`;
-    pop.style.width = `${popWidth}px`;
     if (openUp) {
       pop.style.bottom = `${window.innerHeight - rect.top + 4}px`;
     } else {
@@ -200,7 +206,9 @@ export function SearchableSelect({
                         option.value === value ? 'opacity-100' : 'opacity-0',
                       )}
                     />
-                    <span className="truncate">{option.label}</span>
+                    <span className="truncate" title={option.label}>
+                      {option.label}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>
