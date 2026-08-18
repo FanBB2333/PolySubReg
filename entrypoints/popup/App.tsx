@@ -1,12 +1,13 @@
-import { ExternalLink, GraduationCap, Settings } from 'lucide-react';
+import { ExternalLink, GraduationCap, Globe, Lock, Settings } from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CredentialsSection } from '@/components/settings/CredentialsSection';
 import { FeatureToggles } from '@/components/settings/FeatureToggles';
 
-const SUBJECT_SEARCH_URL =
+const ESTUDENT_URL =
   'https://www38.polyu.edu.hk/eStudent/secure/information/subject-search.jsf';
+const EPUBLIC_URL = 'https://www38.polyu.edu.hk/ePublic/subject-search.jsf';
 
 export function App() {
   return (
@@ -20,6 +21,24 @@ export function App() {
           </p>
         </div>
       </header>
+
+      <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-2">
+          <Button asChild>
+            <a href={ESTUDENT_URL} target="_blank" rel="noreferrer">
+              <Lock className="size-3.5" /> eStudent
+            </a>
+          </Button>
+          <Button variant="secondary" asChild>
+            <a href={EPUBLIC_URL} target="_blank" rel="noreferrer">
+              <Globe className="size-3.5" /> ePublic
+            </a>
+          </Button>
+        </div>
+        <p className="text-center text-[11px] text-muted-foreground">
+          Subject search — ePublic needs no sign-in
+        </p>
+      </div>
 
       <Separator />
 
@@ -37,20 +56,14 @@ export function App() {
 
       <Separator />
 
-      <div className="space-y-2">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => browser.runtime.openOptionsPage()}
-        >
-          <Settings className="size-3.5" /> Full settings (search defaults…)
-        </Button>
-        <Button variant="outline" className="w-full" asChild>
-          <a href={SUBJECT_SEARCH_URL} target="_blank" rel="noreferrer">
-            Open subject search <ExternalLink className="size-3.5" />
-          </a>
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => browser.runtime.openOptionsPage()}
+      >
+        <Settings className="size-3.5" /> Full settings (search defaults…)
+        <ExternalLink className="size-3 opacity-60" />
+      </Button>
     </div>
   );
 }
