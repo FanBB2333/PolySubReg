@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { settingsItem } from '@/lib/storage';
 import { DEFAULT_SETTINGS, type Settings } from '@/lib/types';
 
-/** The three feature switches; changes apply immediately. */
+/** The feature switches; changes apply immediately. */
 export function FeatureToggles() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
@@ -47,6 +47,14 @@ export function FeatureToggles() {
         checked={settings.showMyCourses}
         onChange={(showMyCourses) => update({ showMyCourses })}
       />
+      <Toggle
+        id="psr-auto-register"
+        label="Auto subject registration"
+        hint="Fills the registration form and adds your picks to the cart"
+        caution="Off by default — it acts on the real registration pages"
+        checked={settings.autoRegister}
+        onChange={(autoRegister) => update({ autoRegister })}
+      />
     </div>
   );
 }
@@ -55,11 +63,13 @@ interface ToggleProps {
   id: string;
   label: string;
   hint: string;
+  /** Second line, for switches whose consequences are worth spelling out. */
+  caution?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }
 
-function Toggle({ id, label, hint, checked, onChange }: ToggleProps) {
+function Toggle({ id, label, hint, caution, checked, onChange }: ToggleProps) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -67,6 +77,9 @@ function Toggle({ id, label, hint, checked, onChange }: ToggleProps) {
           {label}
         </Label>
         <p className="text-[11px] text-muted-foreground">{hint}</p>
+        {caution && (
+          <p className="text-[11px] text-destructive/80">{caution}</p>
+        )}
       </div>
       <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>

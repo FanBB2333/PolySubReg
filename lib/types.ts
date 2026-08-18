@@ -64,12 +64,19 @@ export interface Settings {
   autoLogin: boolean;
   enhanceSearch: boolean;
   showMyCourses: boolean;
+  /**
+   * Drives the subject registration pages by itself. Off unless the user turns
+   * it on: unlike the other three this one submits a registration on their
+   * behalf, so it must never be something they get by installing the extension.
+   */
+  autoRegister: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   autoLogin: true,
   enhanceSearch: true,
   showMyCourses: true,
+  autoRegister: false,
 };
 
 export const DEFAULT_CREDENTIALS: Credentials = {
