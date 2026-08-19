@@ -39,6 +39,14 @@ and uses it to:
 - render a full per-group timetable under a ▸ toggle to the left of the subject
   code, with a button to add that group to My Courses.
 
+**Vacancies and eligibility, per group.** Expanding a row also pulls that
+subject's *Subject Group Details* — how many seats are left (or how long the
+waitlist is), the group's type and size, and the programme codes it is open to
+— and folds them into the matching group card. That table lives on
+`subject-search-details.jsf`, which has no addressable URL: it renders whichever
+subject the session last picked, so it is requested by replaying the postback
+the subject-code link submits. The open results page is left as it was.
+
 ### 3. My Courses panel
 
 A floating launcher on every `eStudent` page opens a side panel showing the
@@ -61,7 +69,8 @@ native `<select>` stays in the form underneath:
 
 **Detail without navigation** — every result row is annotated inline with its
 group count, weekly sessions and lecturers; ▾ expands the full per-group
-timetable with an add-to-My-Courses button:
+timetable, each group headed by its seats left and the programmes it is open
+to, with an add-to-My-Courses button:
 
 ![Expanded subject groups](docs/screenshots/subject-groups.png)
 
@@ -116,7 +125,8 @@ entrypoints/
   my-courses.content/         floating launcher and panel
   popup/                      credentials and feature toggles
 lib/polyu/
-  parse.ts                    result table + timetable export parsers
+  parse.ts                    result table, timetable export, group details
+  details.ts                  replays the subject-code postback for vacancies
   timetable.ts                time maths, clash detection, weekly grid layout
   harvest.ts                  scrapes registered subjects off eStudent pages
 tests/fixtures/               verbatim slices of live PolyU responses
