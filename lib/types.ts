@@ -17,10 +17,39 @@ export interface ClassSession {
   remark: string;
 }
 
+/**
+ * A group's row in the "Subject Group Details" table of
+ * `subject-search-details.jsf` — who may take it and whether there is room,
+ * neither of which the timetable export carries.
+ */
+export interface SubjectGroupDetail {
+  /** Programme codes allowed to take this group, e.g. `61435-` or `61435-FCS`. */
+  eligibleProgrammes: string[];
+  /** PolyU's group type code, e.g. `PS`. */
+  groupType: string;
+  /** Places in the group, as printed. */
+  groupSize: string;
+  /**
+   * The vacancies cell verbatim: `(25)` normally, or `(W=40)/(Top-up vac=0)`
+   * once a waitlist has formed — the page's own footnote defines that form.
+   */
+  vacancies: string;
+  /** Free places, when the cell prints a plain count. */
+  seats: number | null;
+  /** Students already queued, when a waitlist has formed. */
+  waiting: number | null;
+  /** Places released in the next auto top-up round. */
+  topUp: number | null;
+  /** `Yes` / `No`, verbatim. */
+  waitlistAvailable: string;
+}
+
 /** One subject group (what PolyU calls a "class"), with all of its sessions. */
 export interface SubjectGroup {
   groupCode: string;
   sessions: ClassSession[];
+  /** Filled in once the details page has been fetched for this subject. */
+  detail?: SubjectGroupDetail;
 }
 
 /** A row of the subject search result table, plus whatever detail we could attach. */

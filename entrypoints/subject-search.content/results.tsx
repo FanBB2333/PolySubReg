@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client';
 import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { SubjectGroups } from '@/components/SubjectGroups';
+import { loadGroupDetails, subjectLinkOf } from '@/lib/polyu/details';
 import {
   findSearchTable,
   headerIndex,
@@ -96,7 +97,7 @@ export async function enhanceResults(ctx: ContentScriptContext): Promise<void> {
       detailRow.appendChild(cell);
       row.after(detailRow);
 
-      await mountDetail(ctx, cell, subject);
+      await mountDetail(ctx, cell, subject, subjectLinkOf(row));
     });
   }
 
@@ -166,6 +167,7 @@ async function mountDetail(
   ctx: ContentScriptContext,
   anchor: HTMLElement,
   subject: Subject,
+  link: HTMLAnchorElement | null,
 ): Promise<void> {
   const ui = await createShadowRootUi(ctx, {
     name: 'psr-subject-detail',
@@ -176,15 +178,22 @@ async function mountDetail(
       const root = ReactDOM.createRoot(container);
       root.render(<SubjectGroups subject={subject} loading />);
 
-      loadTimetable().then(
-        (timetable) =>
+      const timetable = loadTimetable();
+      // Vacancies come from a second request, one subject at a time. Start it
+      // now and render the timetable as soon as it lands rather than making the
+      // whole panel wait for the slower of the two.
+      const details = link
+        ? loadGroupDetails(subject.subjectCode, link)
+        : Promise.reject(new Error('no subject link in this row'));
+      details.catch(() => {}); // handled below; keep it from going unhandled
+
+      timetable.then(
+        (byCode) =>
           root.render(
             <SubjectGroups
-              subject={{
-                ...subject,
-                groups: timetable.get(subject.subjectCode) ?? [],
-              }}
+              subject={{ ...subject, groups: byCode.get(subject.subjectCode) ?? [] }}
               loading={false}
+              details="loading"
             />,
           ),
         (error: unknown) =>
@@ -195,6 +204,36 @@ async function mountDetail(
               error={`Could not load the timetable: ${String(error)}`}
             />,
           ),
+      );
+
+      Promise.all([timetable, details]).then(
+        ([byCode, byGroup]) =>
+          root.render(
+            <SubjectGroups
+              subject={{
+                ...subject,
+                groups: (byCode.get(subject.subjectCode) ?? []).map((group) => ({
+                  ...group,
+                  detail: byGroup.get(group.groupCode),
+                })),
+              }}
+              loading={false}
+              details="ready"
+            />,
+          ),
+        (error: unknown) => {
+          // A missing details page costs the vacancies, not the timetable.
+          console.warn('[PSR] could not load the subject details:', error);
+          timetable.then((byCode) =>
+            root.render(
+              <SubjectGroups
+                subject={{ ...subject, groups: byCode.get(subject.subjectCode) ?? [] }}
+                loading={false}
+                details="failed"
+              />,
+            ),
+          );
+        },
       );
 
       return root;

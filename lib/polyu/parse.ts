@@ -1,4 +1,9 @@
-import type { ClassSession, Subject, SubjectGroup } from '@/lib/types';
+import type {
+  ClassSession,
+  Subject,
+  SubjectGroup,
+  SubjectGroupDetail,
+} from '@/lib/types';
 
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
@@ -150,6 +155,90 @@ export function parseExportTimetable(html: string): Map<string, SubjectGroup[]> 
     groups.sort((a, b) =>
       a.groupCode.localeCompare(b.groupCode, undefined, { numeric: true }),
     );
+  }
+  return result;
+}
+
+const GROUP_DETAIL_HEADERS = {
+  group: 'Subject Group',
+  programmes:
+    'Students of these programmes are eligible for taking this subject group',
+  type: 'Group Type',
+  size: 'Group Size',
+  vacancies: 'Vacancies*',
+  waitlist: 'Waitlist available if no vacancy',
+} as const;
+
+/**
+ * Reads the vacancies cell, which the page prints in one of two shapes:
+ * a plain `(25)`, or `(W=40)/(Top-up vac=0)` once students are queueing. The
+ * second shape means the group is full, so it yields no seats.
+ */
+function parseVacancies(cell: string): Pick<
+  SubjectGroupDetail,
+  'seats' | 'waiting' | 'topUp'
+> {
+  const waiting = cell.match(/W\s*=\s*(\d+)/i);
+  const topUp = cell.match(/Top-up\s*vac\s*=\s*(\d+)/i);
+  // Only a bare count is a seat count — the waitlist form is full of digits too.
+  const plain = cell.trim().match(/^\((\d+)\)$|^(\d+)$/);
+  return {
+    seats: plain ? Number(plain[1] ?? plain[2]) : waiting ? 0 : null,
+    waiting: waiting ? Number(waiting[1]) : null,
+    topUp: topUp ? Number(topUp[1]) : null,
+  };
+}
+
+/**
+ * Parses the "Subject Group Details" table of `subject-search-details.jsf`.
+ *
+ * Returns group code → detail. The group codes match the timetable export's, so
+ * the two sources merge on that key.
+ */
+export function parseGroupDetails(
+  html: string,
+): Map<string, SubjectGroupDetail> {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const table =
+    doc.querySelector<HTMLTableElement>('table[id$=":groupTable"]') ??
+    findTableByHeaders(doc, [
+      GROUP_DETAIL_HEADERS.group,
+      GROUP_DETAIL_HEADERS.type,
+      GROUP_DETAIL_HEADERS.vacancies,
+    ]);
+  const result = new Map<string, SubjectGroupDetail>();
+  if (!table) return result;
+
+  const cols = headerIndex(table);
+  const cellAt = (
+    row: HTMLTableRowElement,
+    label: string,
+  ): HTMLTableCellElement | undefined => {
+    const i = cols.get(label);
+    return i === undefined ? undefined : row.cells[i];
+  };
+
+  for (const row of table.querySelectorAll<HTMLTableRowElement>('tbody tr')) {
+    const groupCode = text(cellAt(row, GROUP_DETAIL_HEADERS.group));
+    if (!groupCode) continue;
+
+    // Each eligible programme is its own span; their text runs together
+    // otherwise, turning `62401-` + `62401-DSA` into one unreadable code.
+    const programmeCell = cellAt(row, GROUP_DETAIL_HEADERS.programmes);
+    const spans = programmeCell?.querySelectorAll('.fixed-size-label');
+    const eligibleProgrammes = spans?.length
+      ? Array.from(spans, text).filter(Boolean)
+      : [text(programmeCell)].filter(Boolean);
+
+    const vacancies = text(cellAt(row, GROUP_DETAIL_HEADERS.vacancies));
+    result.set(groupCode, {
+      eligibleProgrammes,
+      groupType: text(cellAt(row, GROUP_DETAIL_HEADERS.type)),
+      groupSize: text(cellAt(row, GROUP_DETAIL_HEADERS.size)),
+      vacancies,
+      ...parseVacancies(vacancies),
+      waitlistAvailable: text(cellAt(row, GROUP_DETAIL_HEADERS.waitlist)),
+    });
   }
   return result;
 }

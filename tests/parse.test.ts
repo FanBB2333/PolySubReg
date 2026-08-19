@@ -5,14 +5,16 @@ import {
   findSearchTable,
   headerIndex,
   parseExportTimetable,
+  parseGroupDetails,
   parseSearchRow,
 } from '@/lib/polyu/parse';
 
 /**
- * Both fixtures are verbatim slices of live PolyU responses captured from
- * `subject-search.jsf` and `subject-search-export-timetable.jsf`, so these tests
- * pin the parsers to the markup RichFaces actually emits — generated `j_id*`
- * attributes, inline `<script>`/`<style>` blocks and all.
+ * Every fixture is a verbatim slice of a live PolyU response — captured from
+ * `subject-search.jsf`, `subject-search-export-timetable.jsf` and
+ * `subject-search-details.jsf` — so these tests pin the parsers to the markup
+ * RichFaces actually emits: generated `j_id*` attributes, inline
+ * `<script>`/`<style>` blocks and all.
  */
 function fixture(name: string): string {
   // `import.meta.url` is not reliable here: happy-dom installs its own `URL`,
@@ -133,6 +135,75 @@ describe('subject search results', () => {
     const rows = table.querySelectorAll<HTMLTableRowElement>('tbody tr');
     const subject = parseSearchRow(rows[0]!, cols)!;
     expect(subject.categories).toEqual([]);
+  });
+});
+
+describe('parseGroupDetails', () => {
+  const details = parseGroupDetails(fixture('subject-details.html'));
+
+  it('indexes every group in the Subject Group Details table', () => {
+    expect([...details.keys()]).toEqual([
+      '1011',
+      '1012',
+      '173',
+      '125',
+      '175',
+      '194',
+      '1015',
+    ]);
+  });
+
+  it('reads the columns the timetable export does not carry', () => {
+    expect(details.get('1011')).toMatchObject({
+      groupType: 'PS',
+      groupSize: '129',
+      vacancies: '(25)',
+      seats: 25,
+      waiting: null,
+      topUp: null,
+      waitlistAvailable: 'Yes',
+    });
+  });
+
+  it('keeps each eligible programme separate', () => {
+    // The codes sit in adjacent spans; read as one string they would come back
+    // as the unusable `62401-62401-DSA62401-FFT`.
+    expect(details.get('173')!.eligibleProgrammes).toEqual([
+      '62401-',
+      '62401-DSA',
+      '62401-FFT',
+    ]);
+    expect(details.get('1011')!.eligibleProgrammes).toEqual(['61435-']);
+  });
+
+  it('reports a group with no seats left', () => {
+    expect(details.get('125')).toMatchObject({ vacancies: '(0)', seats: 0 });
+  });
+
+  it('splits the waitlist form of the vacancies cell', () => {
+    // Same cell, the shape the page's own footnote documents for a queue.
+    const waitlisted = parseGroupDetails(
+      fixture('subject-details.html').replace('(25)', '(W=40)/(Top-up vac=3)'),
+    ).get('1011')!;
+    expect(waitlisted).toMatchObject({ seats: 0, waiting: 40, topUp: 3 });
+  });
+
+  it('returns an empty index for markup with no group table', () => {
+    expect(parseGroupDetails('<html><body>Nothing</body></html>').size).toBe(0);
+  });
+});
+
+describe('group details join the timetable export', () => {
+  it('every timetable group for COMP1010 has a details row', () => {
+    const groups = parseExportTimetable(fixture('export-timetable.html')).get(
+      'COMP1010',
+    )!;
+    const details = parseGroupDetails(fixture('subject-details.html'));
+    // Both fixtures come from the same subject, so the codes must line up —
+    // including the three that the export lists as one `1015, 125, 175` row.
+    expect(groups.map((g) => details.has(g.groupCode))).toEqual(
+      groups.map(() => true),
+    );
   });
 });
 
